@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}人脸录入 - 人脸考勤系统{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>人脸录入</h5>
+            </div>
+            <div class="card-body p-4">
+                <form id="enrollmentForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">姓名</label>
+                        <input type="text" class="form-control form-control-lg" name="name" placeholder="请输入姓名" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">工号/学号</label>
+                        <input type="text" class="form-control form-control-lg" name="employee_id" placeholder="请输入工号或学号" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">照片</label>
+                        <input type="file" class="form-control form-control-lg" name="photo" accept="image/*" required>
+                        <div class="form-text">请上传清晰的正面照，确保人脸完整可见</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-upload me-2"></i>提交录入
+                    </button>
+                </form>
+                <div id="msg" class="alert mt-3 mb-0 d-none" role="alert"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('enrollmentForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const msg = document.getElementById('msg');
+    msg.classList.remove('d-none', 'alert-success', 'alert-danger');
+    msg.classList.add('alert-info');
+    msg.textContent = '处理中...';
+    try {
+        const r = await fetch('{% url "enrollment_upload" %}', {
+            method: 'POST',
+            body: fd,
+            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+            credentials: 'same-origin'
+        });
+        const data = await r.json();
+        msg.textContent = data.msg;
+        msg.classList.remove('alert-info');
+        msg.classList.add(data.ok ? 'alert-success' : 'alert-danger');
+        if (data.ok) e.target.reset();
+    } catch (err) {
+        msg.textContent = '请求失败: ' + err.message;
+        msg.classList.remove('alert-info');
+        msg.classList.add('alert-danger');
+    }
+};
+</script>
+{% endblock %}

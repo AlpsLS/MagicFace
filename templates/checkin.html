@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}在线签到 - 人脸考勤系统{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-success text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-camera-video me-2"></i>在线签到</h5>
+            </div>
+            <div class="card-body p-4">
+                {% csrf_token %}
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">视频来源</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="source" id="sourceLocal" value="local" checked>
+                            <label class="btn btn-outline-primary" for="sourceLocal"><i class="bi bi-webcam me-1"></i>本地摄像头</label>
+                            <input type="radio" class="btn-check" name="source" id="sourceIp" value="ip">
+                            <label class="btn btn-outline-primary" for="sourceIp"><i class="bi bi-broadcast me-1"></i>IP Webcam</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6" id="ipInput" style="display:none">
+                        <label class="form-label">IP Webcam 地址</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="webcamUrl" placeholder="http://10.12.28.66:8080/">
+                            <button class="btn btn-primary" type="button" id="connectIp"><i class="bi bi-link-45deg me-1"></i>连接</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mb-3">
+                    <video id="video" class="rounded shadow-sm" width="640" height="480" autoplay playsinline style="max-width:100%"></video>
+                    <img id="ipStream" class="rounded shadow-sm" width="640" height="480" style="display:none; max-width:100%" alt="IP Webcam 画面">
+                </div>
+
+                <div class="text-center">
+                    <button id="capture" class="btn btn-success btn-lg px-5">
+                        <i class="bi bi-camera-fill me-2"></i>拍照签到
+                    </button>
+                </div>
+
+                <div id="msg" class="alert mt-4 mb-0 d-none" role="alert"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<canvas id="canvas" style="display:none" width="640" height="480"></canvas>
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/camera.js' %}"></script>
+{% endblock %}
