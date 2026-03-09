@@ -1,6 +1,6 @@
 # MagicFace - 人脸考勤/签到管理系统
 
-基于 Python 3.10 + Django + face_recognition + OpenCV 的人脸识别考勤系统。
+基于 Python 3.8 + Django + face_recognition + OpenCV 的人脸识别考勤系统。
 
 ## 功能
 
@@ -10,14 +10,14 @@
 
 ## 环境要求
 
-- Python 3.10+
-- uv（推荐）或 pip
+- Python 3.8
+- venv
 
 ## 安装
 
 ```bash
-# 使用 uv 创建虚拟环境
-uv venv --python 3.10
+# 使用 venv 创建虚拟环境
+python3 -m venv .venv
 source .venv/bin/activate  # Linux/macOS
 
 # 安装依赖
