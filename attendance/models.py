@@ -1,4 +1,33 @@
+from datetime import time
 from django.db import models
+
+
+class AttendanceRule(models.Model):
+    """考勤规则配置（单例）"""
+    checkin_deadline = models.TimeField('签到截止时间', default=time(9, 0, 0),
+                                        help_text='此时间之后签到算迟到')
+    allow_repeat = models.BooleanField('允许重复签到', default=False,
+                                        help_text='同一人同一天是否可重复签到')
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        verbose_name = '考勤规则'
+        verbose_name_plural = '考勤规则'
+
+    def __str__(self):
+        return f'签到截止 {self.checkin_deadline.strftime("%H:%M")}'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={
+            'checkin_deadline': time(9, 0, 0),
+            'allow_repeat': False,
+        })
+        return obj
 
 
 class Person(models.Model):

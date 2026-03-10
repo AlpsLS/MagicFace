@@ -9,10 +9,8 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.decorators import login_required
 
-from .models import Person, Attendance
+from .models import Person, Attendance, AttendanceRule
 from .services.face_service import extract_face_encoding, match_face
-
-CHECKIN_DEADLINE = dtime(9, 0, 0)
 
 
 def home(request):
@@ -105,8 +103,9 @@ def checkin_submit(request):
     if person_id is None:
         return JsonResponse({'ok': False, 'msg': '未匹配到已录入人员'})
     person = Person.objects.get(id=person_id)
+    rule = AttendanceRule.get()
     today = datetime.now().date()
-    if Attendance.objects.filter(person=person, check_in_time__date=today).exists():
+    if not rule.allow_repeat and Attendance.objects.filter(person=person, check_in_time__date=today).exists():
         return JsonResponse({
             'ok': False,
             'msg': f'{person.name} 今日已签到，无需重复签到',
@@ -114,7 +113,7 @@ def checkin_submit(request):
             'employee_id': person.employee_id,
         })
     now = datetime.now()
-    status = 'late' if now.time() > CHECKIN_DEADLINE else 'normal'
+    status = 'late' if now.time() > rule.checkin_deadline else 'normal'
     Attendance.objects.create(person=person, source='web_camera', status=status)
     status_text = '（迟到）' if status == 'late' else ''
     return JsonResponse({
@@ -214,6 +213,35 @@ def attendance_detail(request):
         'total': total, 'page': page, 'page_size': page_size,
         'total_pages': (total + page_size - 1) // page_size if total else 1,
     })
+
+
+@login_required
+@ensure_csrf_cookie
+def settings_page(request):
+    """考勤规则配置页面"""
+    rule = AttendanceRule.get()
+    return render(request, 'settings.html', {'rule': rule})
+
+
+@login_required
+@require_http_methods(['POST'])
+def settings_save(request):
+    """保存考勤规则"""
+    data = json.loads(request.body) if request.body else {}
+    deadline_str = data.get('checkin_deadline', '').strip()
+    allow_repeat = data.get('allow_repeat', False)
+    if not deadline_str:
+        return JsonResponse({'ok': False, 'msg': '请填写签到截止时间'})
+    try:
+        parts = deadline_str.split(':')
+        deadline = dtime(int(parts[0]), int(parts[1]))
+    except (ValueError, IndexError):
+        return JsonResponse({'ok': False, 'msg': '时间格式错误，请使用 HH:MM'})
+    rule = AttendanceRule.get()
+    rule.checkin_deadline = deadline
+    rule.allow_repeat = bool(allow_repeat)
+    rule.save()
+    return JsonResponse({'ok': True, 'msg': '保存成功'})
 
 
 @login_required

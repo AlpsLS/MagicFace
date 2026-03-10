@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}考勤规则 - 人脸考勤系统{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="mb-0"><i class="bi bi-gear me-2"></i>考勤规则配置</h5>
+            </div>
+            <div class="card-body p-4">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="form-label fw-bold">签到截止时间</label>
+                    <input type="time" class="form-control form-control-lg" id="checkinDeadline"
+                           value="{{ rule.checkin_deadline|time:'H:i' }}">
+                    <div class="form-text">超过此时间签到将被标记为"迟到"</div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">重复签到</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="allowRepeat"
+                               {% if rule.allow_repeat %}checked{% endif %}>
+                        <label class="form-check-label" for="allowRepeat">允许同一人同一天重复签到</label>
+                    </div>
+                    <div class="form-text">关闭时，同一人每天只能签到一次</div>
+                </div>
+
+                <hr>
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">上次更新：{{ rule.updated_at|date:"Y-m-d H:i:s" }}</small>
+                    <button id="saveBtn" class="btn btn-primary px-4">
+                        <i class="bi bi-check-lg me-1"></i>保存设置
+                    </button>
+                </div>
+                <div id="msg" class="alert mt-3 mb-0 d-none" role="alert"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const saveBtn = document.getElementById('saveBtn');
+    const msg = document.getElementById('msg');
+
+    saveBtn.onclick = async () => {
+        const deadline = document.getElementById('checkinDeadline').value;
+        const allowRepeat = document.getElementById('allowRepeat').checked;
+        if (!deadline) {
+            showMsg('请选择签到截止时间', 'danger');
+            return;
+        }
+        showMsg('保存中...', 'info');
+        try {
+            const csrf = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+            const headers = { 'Content-Type': 'application/json' };
+            if (csrf) headers['X-CSRFToken'] = csrf.split('=')[1];
+            const r = await fetch('/api/settings/save/', {
+                method: 'POST', headers, credentials: 'same-origin',
+                body: JSON.stringify({ checkin_deadline: deadline, allow_repeat: allowRepeat })
+            });
+            const data = await r.json();
+            showMsg(data.msg, data.ok ? 'success' : 'danger');
+        } catch (e) {
+            showMsg('请求失败: ' + e.message, 'danger');
+        }
+    };
+
+    function showMsg(text, type) {
+        msg.classList.remove('d-none', 'alert-success', 'alert-danger', 'alert-info');
+        msg.classList.add('alert-' + type);
+        msg.textContent = text;
+    }
+})();
+</script>
+{% endblock %}
