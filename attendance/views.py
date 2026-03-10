@@ -67,6 +67,17 @@ def enrollment_upload(request):
     encoding = extract_face_encoding(img_for_encoding)
     if encoding is None:
         return JsonResponse({'ok': False, 'msg': '未检测到人脸，请上传清晰正面照'})
+    existing = Person.objects.exclude(face_encoding__isnull=True).exclude(face_encoding=[])
+    if existing.exists():
+        known_encodings = [p.face_encoding for p in existing]
+        known_ids = [p.id for p in existing]
+        matched_id = match_face(known_encodings, known_ids, encoding)
+        if matched_id is not None:
+            matched = Person.objects.get(id=matched_id)
+            return JsonResponse({
+                'ok': False,
+                'msg': f'该人脸已被 {matched.name}（{matched.employee_id}）录入，请勿重复录入',
+            })
     person = Person.objects.create(
         name=name,
         employee_id=employee_id,
@@ -116,7 +127,7 @@ def checkin_submit(request):
         })
     now = datetime.now()
     status = 'late' if now.time() > rule.checkin_deadline else 'normal'
-    Attendance.objects.create(person=person, source='web_camera', status=status)
+    record = Attendance.objects.create(person=person, source='web_camera', status=status)
     status_text = '（迟到）' if status == 'late' else ''
     return JsonResponse({
         'ok': True,
@@ -124,6 +135,9 @@ def checkin_submit(request):
         'name': person.name,
         'employee_id': person.employee_id,
         'status': status,
+        'status_label': record.get_status_display(),
+        'photo_url': person.photo.url if person.photo else '',
+        'check_in_time': record.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
     })
 
 
