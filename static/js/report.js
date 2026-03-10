@@ -8,7 +8,7 @@
     const pagination = document.getElementById('pagination');
     const pageInfo = document.getElementById('pageInfo');
 
-    const PAGE_SIZE = 10;
+    const PAGE_SIZE = 5;
     let currentPage = 1;
 
     async function loadChart() {
