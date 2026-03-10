@@ -46,7 +46,9 @@ def enrollment_upload(request):
             return JsonResponse({'ok': False, 'msg': '图片格式错误'})
         from PIL import Image
         import io
+        from django.core.files.base import ContentFile
         img_for_encoding = Image.open(io.BytesIO(img_data)).convert('RGB')
+        photo_file = ContentFile(img_data, name=f'{employee_id or "capture"}.jpg')
     else:
         # 上传照片：FormData
         photo_file = request.FILES.get('photo')
