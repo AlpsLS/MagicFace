@@ -7,50 +7,38 @@
 </div>
 
 <div class="row g-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card h-100 shadow-sm border-0">
             <div class="card-body text-center p-4">
                 <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex p-3 mb-3">
                     <i class="bi bi-camera-video display-6 text-success"></i>
                 </div>
                 <h5 class="card-title">在线签到</h5>
-                <p class="card-text text-muted">摄像头拍照，匹配人脸后自动记录签到</p>
+                <p class="card-text text-muted">通过摄像头拍照，匹配人脸后自动记录签到时间</p>
                 <a href="{% url 'checkin' %}" class="btn btn-success">立即签到</a>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card h-100 shadow-sm border-0">
             <div class="card-body text-center p-4">
                 <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex p-3 mb-3">
-                    <i class="bi bi-person-plus display-6 text-primary"></i>
-                </div>
-                <h5 class="card-title">人脸录入</h5>
-                <p class="card-text text-muted">上传照片，提取 128 维特征向量存入数据库</p>
-                <a href="{% url 'enrollment' %}" class="btn btn-primary">进入录入</a>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card h-100 shadow-sm border-0">
-            <div class="card-body text-center p-4">
-                <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex p-3 mb-3">
-                    <i class="bi bi-people display-6 text-warning"></i>
+                    <i class="bi bi-people display-6 text-primary"></i>
                 </div>
                 <h5 class="card-title">人员管理</h5>
-                <p class="card-text text-muted">查看已录入人员列表，管理人员档案信息</p>
-                <a href="{% url 'persons' %}" class="btn btn-warning">人员管理</a>
+                <p class="card-text text-muted">查看已录入人员列表，录入新人脸，管理人员档案</p>
+                <a href="{% url 'persons' %}" class="btn btn-primary">人员管理</a>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card h-100 shadow-sm border-0">
             <div class="card-body text-center p-4">
                 <div class="rounded-circle bg-info bg-opacity-10 d-inline-flex p-3 mb-3">
                     <i class="bi bi-bar-chart display-6 text-info"></i>
                 </div>
                 <h5 class="card-title">考勤报表</h5>
-                <p class="card-text text-muted">出勤统计与图表，支持导出 CSV</p>
+                <p class="card-text text-muted">出勤统计与图表展示，支持导出 CSV 数据</p>
                 <a href="{% url 'report' %}" class="btn btn-info text-white">查看报表</a>
             </div>
         </div>
