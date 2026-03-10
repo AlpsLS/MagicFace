@@ -9,5 +9,5 @@ class PersonAdmin(admin.ModelAdmin):
 
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
-    list_display = ['person', 'check_in_time', 'source']
-    list_filter = ['check_in_time']
+    list_display = ['person', 'check_in_time', 'status', 'source']
+    list_filter = ['check_in_time', 'status']

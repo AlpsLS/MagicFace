@@ -8,14 +8,14 @@
     </div>
     <div class="card-body p-4">
         <div class="row mb-4">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">统计周期</label>
                 <select id="period" class="form-select">
                     <option value="day">按日</option>
                     <option value="week">按周</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">时间范围</label>
                 <select id="days" class="form-select">
                     <option value="7">最近 7 天</option>
@@ -23,13 +23,62 @@
                     <option value="30">最近 30 天</option>
                 </select>
             </div>
-            <div class="col-md-4 d-flex align-items-end">
+            <div class="col-md-3 d-flex align-items-end">
                 <button id="refresh" class="btn btn-info text-white w-100">
                     <i class="bi bi-arrow-clockwise me-1"></i>刷新
                 </button>
             </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button id="exportBtn" class="btn btn-outline-success w-100">
+                    <i class="bi bi-download me-1"></i>导出 CSV
+                </button>
+            </div>
         </div>
-        <div id="chart" style="width:100%; height:400px;"></div>
+
+        <!-- 统计卡片 -->
+        <div class="row g-3 mb-4" id="summaryCards">
+            <div class="col-md-3">
+                <div class="card text-center border-0 bg-primary bg-opacity-10">
+                    <div class="card-body py-3">
+                        <div class="fs-3 fw-bold text-primary" id="statTotal">-</div>
+                        <small class="text-muted">录入人数</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-0 bg-success bg-opacity-10">
+                    <div class="card-body py-3">
+                        <div class="fs-3 fw-bold text-success" id="statNormal">-</div>
+                        <small class="text-muted">正常签到</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-0 bg-warning bg-opacity-10">
+                    <div class="card-body py-3">
+                        <div class="fs-3 fw-bold text-warning" id="statLate">-</div>
+                        <small class="text-muted">迟到</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-0 bg-danger bg-opacity-10">
+                    <div class="card-body py-3">
+                        <div class="fs-3 fw-bold text-danger" id="statAbsent">-</div>
+                        <small class="text-muted">未签到人数</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-8">
+                <div id="chart" style="width:100%; height:380px;"></div>
+            </div>
+            <div class="col-md-4">
+                <div id="pieChart" style="width:100%; height:380px;"></div>
+            </div>
+        </div>
 
         <hr class="my-4">
         <h5 class="mb-3"><i class="bi bi-list-ul me-2"></i>考勤明细</h5>
@@ -40,11 +89,12 @@
                         <th>姓名</th>
                         <th>工号/学号</th>
                         <th>签到时间</th>
+                        <th>状态</th>
                         <th>来源</th>
                     </tr>
                 </thead>
                 <tbody id="detailTable">
-                    <tr><td colspan="4" class="text-center text-muted">加载中...</td></tr>
+                    <tr><td colspan="5" class="text-center text-muted">加载中...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -59,5 +109,5 @@
 {% endblock %}
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-<script src="{% static 'js/report.js' %}?v=3"></script>
+<script src="{% static 'js/report.js' %}?v=4"></script>
 {% endblock %}

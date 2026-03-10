@@ -1,26 +1,31 @@
+import csv
 import json
 import base64
 import urllib.request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.auth.decorators import login_required
 
 from .models import Person, Attendance
 from .services.face_service import extract_face_encoding, match_face
+
+CHECKIN_DEADLINE = dtime(9, 0, 0)
 
 
 def home(request):
     return render(request, 'home.html')
 
 
+@login_required
 @ensure_csrf_cookie
 def enrollment(request):
     return render(request, 'enrollment.html')
 
 
+@login_required
 @require_http_methods(['POST'])
 def enrollment_upload(request):
     """上传照片或在线拍照，提取人脸特征并保存"""
@@ -100,12 +105,24 @@ def checkin_submit(request):
     if person_id is None:
         return JsonResponse({'ok': False, 'msg': '未匹配到已录入人员'})
     person = Person.objects.get(id=person_id)
-    Attendance.objects.create(person=person, source='web_camera')
+    today = datetime.now().date()
+    if Attendance.objects.filter(person=person, check_in_time__date=today).exists():
+        return JsonResponse({
+            'ok': False,
+            'msg': f'{person.name} 今日已签到，无需重复签到',
+            'name': person.name,
+            'employee_id': person.employee_id,
+        })
+    now = datetime.now()
+    status = 'late' if now.time() > CHECKIN_DEADLINE else 'normal'
+    Attendance.objects.create(person=person, source='web_camera', status=status)
+    status_text = '（迟到）' if status == 'late' else ''
     return JsonResponse({
         'ok': True,
-        'msg': '签到成功',
+        'msg': f'签到成功{status_text}',
         'name': person.name,
         'employee_id': person.employee_id,
+        'status': status,
     })
 
 
@@ -123,6 +140,7 @@ def checkin_frame(request):
         return HttpResponse(status=502)
 
 
+@login_required
 @ensure_csrf_cookie
 def report(request):
     return render(request, 'report.html')
@@ -148,6 +166,25 @@ def attendance_stats(request):
     return JsonResponse({'ok': True, 'data': data})
 
 
+@login_required
+def persons(request):
+    """人员列表页"""
+    person_list = Person.objects.all().order_by('-created_at')
+    return render(request, 'persons.html', {'persons': person_list})
+
+
+@login_required
+@require_http_methods(['POST'])
+def person_delete(request, pk):
+    """删除人员"""
+    try:
+        person = Person.objects.get(pk=pk)
+        person.delete()
+        return JsonResponse({'ok': True, 'msg': '已删除'})
+    except Person.DoesNotExist:
+        return JsonResponse({'ok': False, 'msg': '人员不存在'})
+
+
 def attendance_detail(request):
     """考勤明细 API：支持分页"""
     days = int(request.GET.get('days', 14))
@@ -166,6 +203,8 @@ def attendance_detail(request):
             'name': r.person.name,
             'employee_id': r.person.employee_id,
             'check_in_time': r.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': r.status,
+            'status_label': r.get_status_display(),
             'source': r.source,
         }
         for r in records
@@ -175,3 +214,51 @@ def attendance_detail(request):
         'total': total, 'page': page, 'page_size': page_size,
         'total_pages': (total + page_size - 1) // page_size if total else 1,
     })
+
+
+@login_required
+def attendance_summary(request):
+    """出勤概览 API：正常/迟到/缺勤人数"""
+    days = int(request.GET.get('days', 14))
+    end = datetime.now()
+    start = end - timedelta(days=days)
+    total_persons = Person.objects.count()
+    records = Attendance.objects.filter(check_in_time__gte=start, check_in_time__lte=end)
+    normal_count = records.filter(status='normal').count()
+    late_count = records.filter(status='late').count()
+    checked_persons = records.values('person').distinct().count()
+    absent_persons = total_persons - checked_persons
+    return JsonResponse({
+        'ok': True,
+        'total_persons': total_persons,
+        'normal': normal_count,
+        'late': late_count,
+        'checked_persons': checked_persons,
+        'absent_persons': max(absent_persons, 0),
+    })
+
+
+@login_required
+def attendance_export(request):
+    """导出考勤明细为 CSV"""
+    days = int(request.GET.get('days', 14))
+    end = datetime.now()
+    start = end - timedelta(days=days)
+    records = Attendance.objects.filter(
+        check_in_time__gte=start, check_in_time__lte=end
+    ).select_related('person').order_by('-check_in_time')
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = f'attachment; filename="attendance_{start.strftime("%Y%m%d")}_{end.strftime("%Y%m%d")}.csv"'
+    response.write('\ufeff')
+    writer = csv.writer(response)
+    writer.writerow(['姓名', '工号/学号', '签到时间', '状态', '来源'])
+    for r in records:
+        writer.writerow([
+            r.person.name,
+            r.person.employee_id,
+            r.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+            r.get_status_display(),
+            r.source,
+        ])
+    return response

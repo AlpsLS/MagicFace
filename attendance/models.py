@@ -20,8 +20,13 @@ class Person(models.Model):
 
 class Attendance(models.Model):
     """考勤签到记录"""
+    STATUS_CHOICES = [
+        ('normal', '正常'),
+        ('late', '迟到'),
+    ]
     person = models.ForeignKey(Person, on_delete=models.CASCADE, verbose_name='签到人员')
     check_in_time = models.DateTimeField('签到时间', auto_now_add=True)
+    status = models.CharField('状态', max_length=16, choices=STATUS_CHOICES, default='normal')
     source = models.CharField('来源', max_length=32, default='web_camera')
 
     class Meta:
