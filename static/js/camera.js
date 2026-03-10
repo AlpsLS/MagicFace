@@ -3,19 +3,14 @@
     const ipStream = document.getElementById('ipStream');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const captureBtn = document.getElementById('capture');
-    const toggleAutoBtn = document.getElementById('toggleAuto');
     const msg = document.getElementById('msg');
     const ipInput = document.getElementById('ipInput');
     const webcamUrlInput = document.getElementById('webcamUrl');
     const connectIpBtn = document.getElementById('connectIp');
     const resultCard = document.getElementById('resultCard');
-    const scanIndicator = document.getElementById('scanIndicator');
-    const scanOverlay = document.getElementById('scanOverlay');
 
     let localStream = null;
     let ipWebcamBase = '';
-    let autoMode = false;
     let autoTimer = null;
     let processing = false;
 
@@ -32,7 +27,6 @@
     }
 
     function hideMsg() { msg.classList.add('d-none'); }
-
     function hideResult() { resultCard.classList.add('d-none'); }
 
     function showResult(data) {
@@ -60,7 +54,7 @@
         resultCard.classList.remove('d-none');
     }
 
-    // --- 视频源切换 ---
+    // --- 视频源 ---
 
     document.querySelectorAll('input[name="source"]').forEach(radio => {
         radio.onchange = () => {
@@ -68,6 +62,7 @@
             ipInput.style.display = isIp ? 'block' : 'none';
             video.style.display = isIp ? 'none' : 'block';
             ipStream.style.display = isIp ? 'block' : 'none';
+            stopAutoScan();
             if (isIp) {
                 stopLocalCamera();
                 ipStream.src = '';
@@ -78,7 +73,6 @@
             }
             hideMsg();
             hideResult();
-            if (autoMode) stopAutoScan();
         };
     });
 
@@ -89,7 +83,11 @@
 
     function startLocalCamera() {
         navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            .then(stream => { localStream = stream; video.srcObject = stream; })
+            .then(stream => {
+                localStream = stream;
+                video.srcObject = stream;
+                startAutoScan();
+            })
             .catch(err => showMsg('无法访问摄像头: ' + err.message, 'danger'));
     }
 
@@ -99,7 +97,7 @@
         ipWebcamBase = base;
         ipStream.src = base + '/video';
         ipStream.onerror = () => showMsg('无法连接 IP Webcam', 'danger');
-        ipStream.onload = () => showMsg('已连接', 'success');
+        ipStream.onload = () => { showMsg('已连接', 'success'); startAutoScan(); };
     };
 
     // --- 活体检测 ---
@@ -142,37 +140,25 @@
         return maxDiff >= LIVENESS_THRESHOLD;
     }
 
-    // --- 核心签到流程 ---
+    // --- 自动签到 ---
 
-    async function doCheckin(silent) {
+    async function doCheckin() {
         if (processing) return;
         const isIp = document.querySelector('input[name="source"]:checked').value === 'ip';
-        if (isIp && !ipWebcamBase) { if (!silent) showMsg('请先连接 IP Webcam', 'danger'); return; }
-        if (!isIp && !video.srcObject) { if (!silent) showMsg('请等待摄像头就绪', 'danger'); return; }
+        if (isIp && !ipWebcamBase) return;
+        if (!isIp && !video.srcObject) return;
 
         processing = true;
-        captureBtn.disabled = true;
-
         try {
             const alive = await livenessCheck(isIp);
-            if (!alive) {
-                if (!silent) showMsg('活体检测未通过，请确认是本人面对摄像头', 'warning');
-                processing = false;
-                captureBtn.disabled = false;
-                return;
-            }
-        } catch (err) {
-            if (!silent) showMsg('检测失败: ' + err.message, 'danger');
-            processing = false;
-            captureBtn.disabled = false;
-            return;
-        }
+            if (!alive) { processing = false; return; }
+        } catch (_) { processing = false; return; }
 
         let dataUrl;
         if (isIp) {
             try {
                 const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase + '/shot.jpg'));
-                if (!r.ok) throw new Error('获取快照失败');
+                if (!r.ok) throw new Error();
                 const blob = await r.blob();
                 dataUrl = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -180,17 +166,11 @@
                     reader.onerror = reject;
                     reader.readAsDataURL(blob);
                 });
-            } catch (err) {
-                processing = false;
-                captureBtn.disabled = false;
-                return;
-            }
+            } catch (_) { processing = false; return; }
         } else {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         }
-
-        if (!silent) showMsg('识别中...', 'info');
 
         try {
             const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
@@ -204,65 +184,34 @@
             if (data.ok) {
                 showMsg(data.msg, 'success');
                 showResult(data);
-                if (autoMode) {
-                    pauseAutoScan(AFTER_SUCCESS_PAUSE);
-                }
-            } else if (!silent || data.name) {
-                msg.textContent = data.msg + (data.name ? ` - ${data.name} (${data.employee_id})` : '');
-                msg.classList.remove('d-none', 'alert-info', 'alert-success', 'alert-warning');
-                msg.classList.add(data.name ? 'alert-warning' : 'alert-danger');
+                pauseAutoScan(AFTER_SUCCESS_PAUSE);
+            } else if (data.name) {
+                showMsg(data.msg, 'warning');
             }
-        } catch (err) {
-            if (!silent) showMsg('请求失败: ' + err.message, 'danger');
-        }
+        } catch (_) {}
         processing = false;
-        captureBtn.disabled = false;
     }
 
-    // --- 自动扫描控制 ---
-
     function startAutoScan() {
-        autoMode = true;
-        toggleAutoBtn.innerHTML = '<i class="bi bi-pause-circle me-1"></i>暂停自动识别';
-        toggleAutoBtn.classList.remove('btn-success');
-        toggleAutoBtn.classList.add('btn-warning');
-        scanIndicator.classList.remove('d-none');
-        scanOverlay.classList.remove('d-none');
-        hideResult();
-        hideMsg();
-        scheduleNext(500);
+        stopAutoScan();
+        scheduleNext(1000);
     }
 
     function stopAutoScan() {
-        autoMode = false;
         if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
-        toggleAutoBtn.innerHTML = '<i class="bi bi-play-circle me-1"></i>开启自动识别';
-        toggleAutoBtn.classList.remove('btn-warning');
-        toggleAutoBtn.classList.add('btn-success');
-        scanIndicator.classList.add('d-none');
-        scanOverlay.classList.add('d-none');
     }
 
     function pauseAutoScan(ms) {
-        if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+        stopAutoScan();
         scheduleNext(ms);
     }
 
     function scheduleNext(delay) {
-        if (!autoMode) return;
         autoTimer = setTimeout(async () => {
-            if (!autoMode) return;
-            await doCheckin(true);
-            if (autoMode) scheduleNext(AUTO_SCAN_INTERVAL);
+            await doCheckin();
+            scheduleNext(AUTO_SCAN_INTERVAL);
         }, delay);
     }
-
-    toggleAutoBtn.onclick = () => {
-        if (autoMode) stopAutoScan();
-        else startAutoScan();
-    };
-
-    captureBtn.onclick = () => doCheckin(false);
 
     startLocalCamera();
 })();

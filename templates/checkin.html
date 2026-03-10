@@ -8,7 +8,7 @@
             <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-camera-video me-2"></i>在线签到</h5>
                 <div>
-                    <span id="scanIndicator" class="badge bg-light text-dark d-none">
+                    <span id="scanIndicator" class="badge bg-light text-dark">
                         <span class="spinner-grow spinner-grow-sm text-success me-1"></span>自动识别中
                     </span>
                 </div>
@@ -37,18 +37,9 @@
                 <div class="text-center mb-3 position-relative">
                     <video id="video" class="rounded shadow-sm" width="640" height="480" autoplay playsinline style="max-width:100%"></video>
                     <img id="ipStream" class="rounded shadow-sm" width="640" height="480" style="display:none; max-width:100%" alt="IP Webcam 画面">
-                    <div id="scanOverlay" class="position-absolute top-0 start-50 translate-middle-x mt-2 d-none">
+                    <div id="scanOverlay" class="position-absolute top-0 start-50 translate-middle-x mt-2">
                         <span class="badge bg-dark bg-opacity-75 px-3 py-2"><i class="bi bi-person-bounding-box me-1"></i>请面对摄像头，系统将自动识别签到</span>
                     </div>
-                </div>
-
-                <div class="text-center">
-                    <button id="capture" class="btn btn-outline-success px-4">
-                        <i class="bi bi-camera-fill me-1"></i>手动签到
-                    </button>
-                    <button id="toggleAuto" class="btn btn-success px-4 ms-2">
-                        <i class="bi bi-play-circle me-1"></i>开启自动识别
-                    </button>
                 </div>
 
                 <div id="msg" class="alert mt-4 mb-0 d-none" role="alert"></div>
@@ -82,5 +73,5 @@
 <canvas id="canvas" style="display:none" width="640" height="480"></canvas>
 {% endblock %}
 {% block extra_js %}
-<script src="{% static 'js/camera.js' %}?v=3"></script>
+<script src="{% static 'js/camera.js' %}?v=4"></script>
 {% endblock %}
