@@ -13,6 +13,9 @@
     const webcamUrlInput = document.getElementById('webcamUrl');
     const connectIpBtn = document.getElementById('connectIp');
     const msg = document.getElementById('msg');
+    const previewArea = document.getElementById('previewArea');
+    const previewImg = document.getElementById('previewImg');
+    const retakeBtn = document.getElementById('retakeBtn');
 
     let localStream = null;
     let ipWebcamBase = '';
@@ -32,6 +35,7 @@
             cameraArea.style.display = isCamera ? 'block' : 'none';
             photoFileInput.required = !isCamera;
             capturedDataUrl = null;
+            previewArea.style.display = 'none';
             if (isCamera) {
                 startLocalCamera();
             } else {
@@ -57,6 +61,7 @@
                 startLocalCamera();
             }
             capturedDataUrl = null;
+            previewArea.style.display = 'none';
         };
     });
 
@@ -110,6 +115,8 @@
                     reader.onerror = reject;
                     reader.readAsDataURL(blob);
                 });
+                previewImg.src = capturedDataUrl;
+                previewArea.style.display = 'block';
                 showMsg('拍照成功，请点击提交录入', 'success');
             } catch (err) {
                 showMsg('获取画面失败: ' + err.message, 'danger');
@@ -122,8 +129,17 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0);
             capturedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            previewImg.src = capturedDataUrl;
+            previewArea.style.display = 'block';
             showMsg('拍照成功，请点击提交录入', 'success');
         }
+    };
+
+    retakeBtn.onclick = () => {
+        capturedDataUrl = null;
+        previewArea.style.display = 'none';
+        previewImg.src = '';
+        showMsg('', '');
     };
 
     form.onsubmit = async (e) => {
@@ -176,6 +192,8 @@
                 employeeIdInput.value = '';
                 photoFileInput.value = '';
                 capturedDataUrl = null;
+                previewArea.style.display = 'none';
+                previewImg.src = '';
             }
         } catch (err) {
             showMsg('请求失败: ' + err.message, 'danger');

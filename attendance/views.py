@@ -149,13 +149,18 @@ def attendance_stats(request):
 
 
 def attendance_detail(request):
-    """考勤明细 API：返回签到记录列表"""
+    """考勤明细 API：支持分页"""
     days = int(request.GET.get('days', 14))
+    page = max(int(request.GET.get('page', 1)), 1)
+    page_size = min(max(int(request.GET.get('page_size', 10)), 1), 100)
     end = datetime.now()
     start = end - timedelta(days=days)
-    records = Attendance.objects.filter(
+    qs = Attendance.objects.filter(
         check_in_time__gte=start, check_in_time__lte=end
     ).select_related('person').order_by('-check_in_time')
+    total = qs.count()
+    offset = (page - 1) * page_size
+    records = qs[offset:offset + page_size]
     data = [
         {
             'name': r.person.name,
@@ -165,4 +170,8 @@ def attendance_detail(request):
         }
         for r in records
     ]
-    return JsonResponse({'ok': True, 'data': data})
+    return JsonResponse({
+        'ok': True, 'data': data,
+        'total': total, 'page': page, 'page_size': page_size,
+        'total_pages': (total + page_size - 1) // page_size if total else 1,
+    })
