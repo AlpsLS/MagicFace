@@ -23,22 +23,50 @@ def enrollment(request):
 
 @require_http_methods(['POST'])
 def enrollment_upload(request):
-    """上传照片，提取人脸特征并保存"""
-    photo = request.FILES.get('photo')
-    name = request.POST.get('name', '').strip()
-    employee_id = request.POST.get('employee_id', '').strip()
-    if not all([photo, name, employee_id]):
-        return JsonResponse({'ok': False, 'msg': '请填写姓名、工号并上传照片'})
+    """上传照片或在线拍照，提取人脸特征并保存"""
+    name = ''
+    employee_id = ''
+    img_for_encoding = None
+    photo_file = None
+
+    if request.content_type and 'application/json' in request.content_type:
+        # 在线拍照：JSON + base64
+        data = json.loads(request.body) if request.body else {}
+        name = data.get('name', '').strip()
+        employee_id = data.get('employee_id', '').strip()
+        img_b64 = data.get('image')
+        if not img_b64:
+            return JsonResponse({'ok': False, 'msg': '未收到图片'})
+        try:
+            img_data = base64.b64decode(img_b64.split(',')[-1] if ',' in img_b64 else img_b64)
+        except Exception:
+            return JsonResponse({'ok': False, 'msg': '图片格式错误'})
+        from PIL import Image
+        import io
+        img_for_encoding = Image.open(io.BytesIO(img_data)).convert('RGB')
+    else:
+        # 上传照片：FormData
+        photo_file = request.FILES.get('photo')
+        name = request.POST.get('name', '').strip()
+        employee_id = request.POST.get('employee_id', '').strip()
+        if photo_file:
+            img_for_encoding = photo_file
+
+    if not all([name, employee_id]):
+        return JsonResponse({'ok': False, 'msg': '请填写姓名、工号'})
+    if not img_for_encoding:
+        return JsonResponse({'ok': False, 'msg': '请上传照片或拍照'})
     if Person.objects.filter(employee_id=employee_id).exists():
         return JsonResponse({'ok': False, 'msg': f'工号 {employee_id} 已存在'})
-    encoding = extract_face_encoding(photo)
+
+    encoding = extract_face_encoding(img_for_encoding)
     if encoding is None:
         return JsonResponse({'ok': False, 'msg': '未检测到人脸，请上传清晰正面照'})
     person = Person.objects.create(
         name=name,
         employee_id=employee_id,
         face_encoding=encoding,
-        photo=photo,
+        photo=photo_file,
     )
     return JsonResponse({'ok': True, 'msg': f'{person.name} 录入成功', 'id': person.id})
 

@@ -1,64 +1,80 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}人脸录入 - 人脸考勤系统{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-10">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-primary text-white py-3">
                 <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>人脸录入</h5>
             </div>
             <div class="card-body p-4">
                 <form id="enrollmentForm">
-                    {% csrf_token %}
-                    <div class="mb-3">
-                        <label class="form-label">姓名</label>
-                        <input type="text" class="form-control form-control-lg" name="name" placeholder="请输入姓名" required>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">姓名</label>
+                    <input type="text" class="form-control form-control-lg" id="name" name="name" placeholder="请输入姓名" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">工号/学号</label>
+                    <input type="text" class="form-control form-control-lg" id="employee_id" name="employee_id" placeholder="请输入工号或学号" required>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">照片来源</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="photoSource" id="sourceUpload" value="upload" checked>
+                        <label class="btn btn-outline-primary" for="sourceUpload"><i class="bi bi-upload me-1"></i>上传照片</label>
+                        <input type="radio" class="btn-check" name="photoSource" id="sourceCamera" value="camera">
+                        <label class="btn btn-outline-primary" for="sourceCamera"><i class="bi bi-camera-fill me-1"></i>在线拍照</label>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">工号/学号</label>
-                        <input type="text" class="form-control form-control-lg" name="employee_id" placeholder="请输入工号或学号" required>
+                </div>
+
+                <div id="uploadArea" class="mb-4">
+                    <label class="form-label">照片</label>
+                    <input type="file" class="form-control form-control-lg" id="photoFile" name="photo" accept="image/*">
+                    <div class="form-text">请上传清晰的正面照，确保人脸完整可见</div>
+                </div>
+
+                <div id="cameraArea" class="mb-4" style="display:none">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">视频来源</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="camSource" id="camLocal" value="local" checked>
+                                <label class="btn btn-outline-secondary btn-sm" for="camLocal">本地摄像头</label>
+                                <input type="radio" class="btn-check" name="camSource" id="camIp" value="ip">
+                                <label class="btn btn-outline-secondary btn-sm" for="camIp">IP Webcam</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="ipInput" style="display:none">
+                            <label class="form-label">IP Webcam 地址</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="webcamUrl" placeholder="http://192.168.1.100:8080">
+                                <button class="btn btn-primary" type="button" id="connectIp"><i class="bi bi-link-45deg"></i></button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-4">
-                        <label class="form-label">照片</label>
-                        <input type="file" class="form-control form-control-lg" name="photo" accept="image/*" required>
-                        <div class="form-text">请上传清晰的正面照，确保人脸完整可见</div>
+                    <div class="text-center mb-2">
+                        <video id="video" class="rounded shadow-sm" width="480" height="360" autoplay playsinline style="max-width:100%"></video>
+                        <img id="ipStream" class="rounded shadow-sm" width="480" height="360" style="display:none; max-width:100%" alt="IP Webcam">
                     </div>
-                    <button type="submit" class="btn btn-primary btn-lg w-100">
-                        <i class="bi bi-upload me-2"></i>提交录入
-                    </button>
-                </form>
+                    <div class="text-center">
+                        <button type="button" id="captureBtn" class="btn btn-outline-primary"><i class="bi bi-camera me-1"></i>拍照</button>
+                    </div>
+                </div>
+
+                <button type="submit" id="submitBtn" class="btn btn-primary btn-lg w-100">
+                    <i class="bi bi-upload me-2"></i>提交录入
+                </button>
                 <div id="msg" class="alert mt-3 mb-0 d-none" role="alert"></div>
+                </form>
             </div>
         </div>
     </div>
 </div>
+<canvas id="canvas" style="display:none" width="480" height="360"></canvas>
 {% endblock %}
 {% block extra_js %}
-<script>
-document.getElementById('enrollmentForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const msg = document.getElementById('msg');
-    msg.classList.remove('d-none', 'alert-success', 'alert-danger');
-    msg.classList.add('alert-info');
-    msg.textContent = '处理中...';
-    try {
-        const r = await fetch('{% url "enrollment_upload" %}', {
-            method: 'POST',
-            body: fd,
-            headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
-            credentials: 'same-origin'
-        });
-        const data = await r.json();
-        msg.textContent = data.msg;
-        msg.classList.remove('alert-info');
-        msg.classList.add(data.ok ? 'alert-success' : 'alert-danger');
-        if (data.ok) e.target.reset();
-    } catch (err) {
-        msg.textContent = '请求失败: ' + err.message;
-        msg.classList.remove('alert-info');
-        msg.classList.add('alert-danger');
-    }
-};
-</script>
+<script src="{% static 'js/enrollment.js' %}"></script>
 {% endblock %}
