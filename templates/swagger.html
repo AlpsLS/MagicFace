@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MagicFace API 文档</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
+  <style>
+    /* ── 整体布局 ── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; }
+
+    /* ── 顶部导航条 ── */
+    .topbar-wrapper {
+      background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .topbar-logo-icon {
+      width: 32px; height: 32px;
+      background: #fff;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .topbar-title { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: .5px; }
+    .topbar-subtitle { color: rgba(255,255,255,.7); font-size: 12px; }
+    .topbar-links { display: flex; gap: 8px; }
+    .topbar-btn {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      text-decoration: none;
+      transition: background .2s;
+    }
+    .topbar-btn.home { color: #fff; border: 1px solid rgba(255,255,255,.5); }
+    .topbar-btn.home:hover { background: rgba(255,255,255,.15); }
+    .topbar-btn.json { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.4); }
+    .topbar-btn.json:hover { background: rgba(255,255,255,.32); }
+
+    /* ── Swagger UI 容器 ── */
+    #swagger-ui { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    /* ── 覆盖 Swagger UI 默认样式 ── */
+    .swagger-ui .topbar { display: none !important; }  /* 隐藏原生 topbar */
+    .swagger-ui .info { margin: 0 0 20px; }
+    .swagger-ui .info .title { font-size: 24px; color: #1F4E79; }
+    .swagger-ui .info .description p { color: #444; line-height: 1.7; }
+    .swagger-ui .scheme-container { background: #fff; padding: 14px 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+
+    /* tag 标题 */
+    .swagger-ui .opblock-tag { font-size: 15px !important; font-weight: 700; color: #1F4E79 !important; border-bottom: 2px solid #E8F0FB; }
+    .swagger-ui .opblock-tag:hover { background: #f0f5ff !important; }
+
+    /* 请求块 */
+    .swagger-ui .opblock { border-radius: 8px !important; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.08) !important; }
+    .swagger-ui .opblock.opblock-post .opblock-summary { background: #EAF3FF; }
+    .swagger-ui .opblock.opblock-get  .opblock-summary { background: #EAF7EC; }
+    .swagger-ui .opblock-summary-path { font-size: 14px !important; }
+    .swagger-ui .opblock-summary-description { font-size: 13px; color: #555; }
+
+    /* 响应 */
+    .swagger-ui .responses-inner h4, .swagger-ui .responses-inner h5 { color: #333; }
+    .swagger-ui table.headers td { font-size: 13px; }
+
+    /* 参数表 */
+    .swagger-ui .parameters-col_description p { margin: 0; }
+    .swagger-ui .parameter__name { font-weight: 700; }
+
+    /* 底部 badge */
+    .api-version-badge {
+      display: inline-block;
+      background: #1F4E79;
+      color: #fff;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .auth-tip {
+      background: #FFF9E6;
+      border-left: 4px solid #F0AD00;
+      padding: 10px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #7A5800;
+      margin: 16px 0;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .auth-tip b { color: #5a3e00; }
+  </style>
+</head>
+<body>
+
+<!-- 顶部导航条 -->
+<div class="topbar-wrapper">
+  <a class="topbar-logo" href="/">
+    <div class="topbar-logo-icon">🎭</div>
+    <div>
+      <div class="topbar-title">MagicFace</div>
+      <div class="topbar-subtitle">智能考勤系统</div>
+    </div>
+  </a>
+  <div class="topbar-links">
+    <a href="/" class="topbar-btn home">← 返回系统</a>
+    <a href="/api/schema.json" target="_blank" class="topbar-btn json">📄 OpenAPI JSON</a>
+  </div>
+</div>
+
+<!-- 认证提示 -->
+<div class="auth-tip">
+  <b>认证说明：</b>
+  标注 🔒 的接口需要管理员登录。请先访问
+  <a href="/login/" target="_blank">/login/</a> 登录后再测试受保护接口。
+  所有 POST 请求还需在请求头中携带 <code>X-CSRFToken</code>（值从 Cookie <code>csrftoken</code> 中读取）。
+</div>
+
+<div id="swagger-ui"></div>
+
+<script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+<script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
+<script>
+  window.onload = function () {
+    SwaggerUIBundle({
+      url: "/api/schema.json",
+      dom_id: "#swagger-ui",
+      deepLinking: true,
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+      layout: "StandaloneLayout",
+      defaultModelsExpandDepth: 1,
+      defaultModelExpandDepth: 2,
+      docExpansion: "list",          // 默认展开 tag 列表
+      tryItOutEnabled: true,         // 默认开启 Try it out
+      requestInterceptor: function (request) {
+        // 自动从 Cookie 读取 csrftoken 并注入请求头
+        const csrfToken = document.cookie
+          .split("; ")
+          .find(row => row.startsWith("csrftoken="))
+          ?.split("=")[1];
+        if (csrfToken) {
+          request.headers["X-CSRFToken"] = csrfToken;
+        }
+        return request;
+      },
+      onComplete: function () {
+        // 隐藏原生 topbar（如有残留）
+        const topbar = document.querySelector(".swagger-ui .topbar");
+        if (topbar) topbar.style.display = "none";
+      },
+    });
+  };
+</script>
+</body>
+</html>

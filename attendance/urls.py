@@ -2,6 +2,10 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # API 文档
+    path('api/docs/', views.swagger_ui, name='swagger_ui'),
+    path('api/schema.json', views.schema_json, name='schema_json'),
+
     path('', views.home, name='home'),
     path('enrollment/', views.enrollment, name='enrollment'),
     path('enrollment/upload/', views.enrollment_upload, name='enrollment_upload'),

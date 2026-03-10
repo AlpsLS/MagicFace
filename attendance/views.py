@@ -11,6 +11,17 @@ from django.contrib.auth.decorators import login_required
 
 from .models import Person, Attendance, AttendanceRule
 from .services.face_service import extract_face_encoding, match_face
+from .api_schema import SCHEMA
+
+
+def schema_json(request):
+    """返回 OpenAPI 3.0 JSON 规范"""
+    return JsonResponse(SCHEMA, json_dumps_params={"ensure_ascii": False, "indent": 2})
+
+
+def swagger_ui(request):
+    """渲染 Swagger UI 页面"""
+    return render(request, "swagger.html")
 
 
 def home(request):

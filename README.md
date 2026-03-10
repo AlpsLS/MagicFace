@@ -37,17 +37,38 @@ MagicFace/
 ├── magicface/               # Django 项目配置（settings / urls / wsgi）
 ├── attendance/              # 核心业务应用
 │   ├── models.py            # Person · Attendance · AttendanceRule
-│   ├── views.py             # 14 个视图函数
-│   ├── urls.py              # 路由配置
+│   ├── views.py             # 视图函数（页面 + API + 文档）
+│   ├── urls.py              # 路由配置（含 /api/docs/）
+│   ├── api_schema.py        # OpenAPI 3.0 规范定义
 │   └── services/
 │       └── face_service.py  # 人脸特征提取 & 比对
-├── templates/               # HTML 模板（base / home / checkin / enrollment …）
+├── templates/               # HTML 模板
+│   ├── base.html            # 基础布局
+│   ├── swagger.html         # Swagger UI 页面
+│   └── ...                  # checkin / enrollment / report …
 ├── static/js/               # camera.js · enrollment.js · report.js
 ├── media/                   # 用户上传文件（运行时生成）
 ├── thesis/                  # 毕业设计论文（Markdown + Word）
 ├── requirements.txt
 └── manage.py
 ```
+
+---
+
+## API 文档
+
+系统内置 **Swagger UI** 交互式接口文档，无需安装任何额外依赖。
+
+| 地址 | 说明 |
+|------|------|
+| http://127.0.0.1:8000/api/docs/ | Swagger UI 可视化文档（支持在线测试） |
+| http://127.0.0.1:8000/api/schema.json | OpenAPI 3.0 原始 JSON 规范 |
+
+**特性：**
+- 覆盖全部 10 个 API 接口，含请求/响应 Schema 和示例数据
+- 默认开启 **Try it out**，可直接在页面发送请求测试
+- 自动从 Cookie 读取 `csrftoken` 并注入 `X-CSRFToken` 请求头，POST 接口开箱即用
+- 标注了每个接口的认证要求（🔒 需登录 / 公开）
 
 ---
 
@@ -110,6 +131,7 @@ python manage.py runserver
 
 - **签到页（公开）**：http://127.0.0.1:8000/checkin/
 - **管理后台**：http://127.0.0.1:8000/admin/
+- **API 文档**：http://127.0.0.1:8000/api/docs/
 
 ---
 
