@@ -108,8 +108,9 @@
     }
 
     async function captureIpFrame() {
-        const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase + '/shot.jpg'));
-        if (!r.ok) throw new Error('获取快照失败');
+        // 传基础地址，后端自动探测快照路径
+        const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase));
+        if (!r.ok) throw new Error('获取快照失败（' + r.status + '）');
         const blob = await r.blob();
         const bmp = await createImageBitmap(blob);
         ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
@@ -157,8 +158,8 @@
         let dataUrl;
         if (isIp) {
             try {
-                const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase + '/shot.jpg'));
-                if (!r.ok) throw new Error();
+                const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase));
+                if (!r.ok) throw new Error('快照获取失败（' + r.status + '）');
                 const blob = await r.blob();
                 dataUrl = await new Promise((resolve, reject) => {
                     const reader = new FileReader();

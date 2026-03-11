@@ -153,17 +153,48 @@ def checkin_submit(request):
 
 
 def checkin_frame(request):
-    """代理 IP Webcam 快照，避免 CORS"""
+    """代理 IP Webcam 快照，避免 CORS。
+    支持传入完整快照 URL 或仅传基础地址（自动探测常见快照路径）。
+    """
     url = request.GET.get('url', '').strip()
     if not url or not url.startswith(('http://', 'https://')):
         return HttpResponse(status=400)
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'MagicFace/1.0'})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            data = r.read()
-        return HttpResponse(data, content_type='image/jpeg')
-    except Exception:
-        return HttpResponse(status=502)
+
+    # 常见 IP Webcam 软件的快照路径，按优先级排列
+    SNAPSHOT_PATHS = [
+        '/shot.jpg',        # IP Webcam (Android)
+        '/snapshot.jpg',    # 通用
+        '/jpeg',            # 部分软件
+        '/capture',         # 部分软件
+        '/cam/1/frame.jpg', # DroidCam
+        '/photo.jpg',
+        '/image.jpg',
+        '/frame.jpg',
+    ]
+
+    # 如果 url 已包含路径（不以 / 结尾且最后一段含 .），直接请求
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    if parsed.path and parsed.path != '/' and '.' in parsed.path.split('/')[-1]:
+        candidates = [url]
+    else:
+        base = url.rstrip('/')
+        candidates = [base + p for p in SNAPSHOT_PATHS]
+
+    headers = {'User-Agent': 'Mozilla/5.0 (MagicFace IP Webcam Proxy)'}
+    for candidate in candidates:
+        try:
+            req = urllib.request.Request(candidate, headers=headers)
+            with urllib.request.urlopen(req, timeout=3) as r:
+                content_type = r.headers.get('Content-Type', '')
+                data = r.read()
+            # 确认返回的是图片内容
+            if data and ('image' in content_type or data[:2] in (b'\xff\xd8', b'\x89P')):
+                return HttpResponse(data, content_type='image/jpeg')
+        except Exception:
+            continue
+
+    return HttpResponse(status=502)
 
 
 @login_required

@@ -89,7 +89,7 @@ source .venv/bin/activate       # Linux / macOS
 ### 2. 安装依赖
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 # 或使用 uv（更快）：
 # uv pip install -r requirements.txt
 ```
