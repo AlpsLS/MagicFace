@@ -154,13 +154,19 @@ def checkin_submit(request):
 
 def checkin_frame(request):
     """代理 IP Webcam 快照，避免 CORS。
-    支持传入完整快照 URL 或仅传基础地址（自动探测常见快照路径）。
+    策略：
+    1. 优先探测常见快照路径（静态图片，快速）
+    2. 全部失败后，尝试从 MJPEG 视频流中提取第一帧（兜底）
     """
+    from urllib.parse import urlparse
+
     url = request.GET.get('url', '').strip()
     if not url or not url.startswith(('http://', 'https://')):
         return HttpResponse(status=400)
 
-    # 常见 IP Webcam 软件的快照路径，按优先级排列
+    HEADERS = {'User-Agent': 'Mozilla/5.0 (MagicFace IP Webcam Proxy)'}
+
+    # ── 阶段1：快照路径探测 ──────────────────────────────────────
     SNAPSHOT_PATHS = [
         '/shot.jpg',        # IP Webcam (Android)
         '/snapshot.jpg',    # 通用
@@ -172,25 +178,65 @@ def checkin_frame(request):
         '/frame.jpg',
     ]
 
-    # 如果 url 已包含路径（不以 / 结尾且最后一段含 .），直接请求
-    from urllib.parse import urlparse
     parsed = urlparse(url)
+    # url 已含具体文件路径时直接请求，否则逐一拼接探测
     if parsed.path and parsed.path != '/' and '.' in parsed.path.split('/')[-1]:
-        candidates = [url]
+        snapshot_candidates = [url]
     else:
         base = url.rstrip('/')
-        candidates = [base + p for p in SNAPSHOT_PATHS]
+        snapshot_candidates = [base + p for p in SNAPSHOT_PATHS]
 
-    headers = {'User-Agent': 'Mozilla/5.0 (MagicFace IP Webcam Proxy)'}
-    for candidate in candidates:
+    for candidate in snapshot_candidates:
         try:
-            req = urllib.request.Request(candidate, headers=headers)
+            req = urllib.request.Request(candidate, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=3) as r:
                 content_type = r.headers.get('Content-Type', '')
                 data = r.read()
-            # 确认返回的是图片内容
             if data and ('image' in content_type or data[:2] in (b'\xff\xd8', b'\x89P')):
                 return HttpResponse(data, content_type='image/jpeg')
+        except Exception:
+            continue
+
+    # ── 阶段2：MJPEG 流取帧（兜底）──────────────────────────────
+    STREAM_PATHS = [
+        '/video',           # IP Webcam (Android)
+        '/mjpeg',           # 通用
+        '/stream',          # 通用
+        '/mjpegfeed',       # 部分软件
+        '/cam/1/stream',    # DroidCam
+        '/videostream.cgi', # 部分网络摄像头
+    ]
+
+    base = url.rstrip('/')
+    # url 已含路径时视为流地址直接尝试，否则逐一拼接
+    if parsed.path and parsed.path != '/':
+        stream_candidates = [url]
+    else:
+        stream_candidates = [base + p for p in STREAM_PATHS]
+
+    for stream_url in stream_candidates:
+        try:
+            req = urllib.request.Request(stream_url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=5) as r:
+                content_type = r.headers.get('Content-Type', '')
+                # 确认是 MJPEG 流
+                if 'multipart' not in content_type and 'mjpeg' not in content_type:
+                    continue
+                buf = b''
+                # 最多读取 500KB，足够包含一帧
+                while len(buf) < 512_000:
+                    chunk = r.read(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                    # 寻找完整 JPEG 帧（SOI=\xff\xd8, EOI=\xff\xd9）
+                    start = buf.find(b'\xff\xd8')
+                    if start == -1:
+                        continue
+                    end = buf.find(b'\xff\xd9', start)
+                    if end != -1:
+                        frame = buf[start:end + 2]
+                        return HttpResponse(frame, content_type='image/jpeg')
         except Exception:
             continue
 
