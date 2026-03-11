@@ -94,13 +94,10 @@ pip install -r requirements.txt
 # uv pip install -r requirements.txt
 ```
 
-**Windows 安装 uv：** 在 PowerShell 中执行：
+**安装 uv：**
 
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-uv --version
-```
+- Linux / macOS：`curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Windows：在 PowerShell 中执行 `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`
 
 > dlib 编译耗时较长（5~15 分钟），请耐心等待。
 
