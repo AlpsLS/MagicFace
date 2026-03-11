@@ -36,7 +36,7 @@
 
                 <div class="text-center mb-3 position-relative">
                     <video id="video" class="rounded shadow-sm" width="640" height="480" autoplay playsinline style="max-width:100%"></video>
-                    <img id="ipStream" class="rounded shadow-sm" width="640" height="480" style="display:none; max-width:100%" alt="IP Webcam 画面">
+                    <img id="ipStream" class="rounded shadow-sm" width="640" height="480" crossorigin="anonymous" style="display:none; max-width:100%" alt="IP Webcam 画面">
                     <div id="scanOverlay" class="position-absolute top-0 start-50 translate-middle-x mt-2">
                         <span class="badge bg-dark bg-opacity-75 px-3 py-2"><i class="bi bi-person-bounding-box me-1"></i>请面对摄像头，系统将自动识别签到</span>
                     </div>
@@ -73,5 +73,5 @@
 <canvas id="canvas" style="display:none" width="640" height="480"></canvas>
 {% endblock %}
 {% block extra_js %}
-<script src="{% static 'js/camera.js' %}?v=5"></script>
+<script src="{% static 'js/camera.js' %}?v=6"></script>
 {% endblock %}

@@ -95,25 +95,21 @@
         let base = webcamUrlInput.value.trim().replace(/\/$/, '');
         if (!base) { showMsg('请输入 IP Webcam 地址', 'danger'); return; }
         ipWebcamBase = base;
-        ipStream.src = base + '/video';
+        ipStream.src = '/checkin/stream/?url=' + encodeURIComponent(base);
         ipStream.onerror = () => showMsg('无法连接 IP Webcam', 'danger');
         ipStream.onload = () => { showMsg('已连接', 'success'); startAutoScan(); };
     };
 
-    // --- 活体检测 ---
+    // --- 帧捕获 ---
 
     function captureLocalFrame() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         return ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
 
-    async function captureIpFrame() {
-        // 传基础地址，后端自动探测快照路径
-        const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase));
-        if (!r.ok) throw new Error('获取快照失败（' + r.status + '）');
-        const blob = await r.blob();
-        const bmp = await createImageBitmap(blob);
-        ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    function captureIpFrame() {
+        if (!ipStream.naturalWidth) throw new Error('IP Webcam 画面尚未加载');
+        ctx.drawImage(ipStream, 0, 0, canvas.width, canvas.height);
         return ctx.getImageData(0, 0, canvas.width, canvas.height);
     }
 
@@ -131,7 +127,7 @@
     async function livenessCheck(isIp) {
         const frames = [];
         for (let i = 0; i < LIVENESS_FRAMES; i++) {
-            frames.push(isIp ? await captureIpFrame() : captureLocalFrame());
+            frames.push(isIp ? captureIpFrame() : captureLocalFrame());
             if (i < LIVENESS_FRAMES - 1) await sleep(LIVENESS_INTERVAL);
         }
         let maxDiff = 0;
@@ -158,15 +154,8 @@
         let dataUrl;
         if (isIp) {
             try {
-                const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase));
-                if (!r.ok) throw new Error('快照获取失败（' + r.status + '）');
-                const blob = await r.blob();
-                dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
+                ctx.drawImage(ipStream, 0, 0, canvas.width, canvas.height);
+                dataUrl = canvas.toDataURL('image/jpeg', 0.9);
             } catch (_) { processing = false; return; }
         } else {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);

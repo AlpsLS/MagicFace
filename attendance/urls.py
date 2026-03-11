@@ -12,6 +12,7 @@ urlpatterns = [
     path('checkin/', views.checkin, name='checkin'),
     path('checkin/submit/', views.checkin_submit, name='checkin_submit'),
     path('checkin/frame/', views.checkin_frame, name='checkin_frame'),
+    path('checkin/stream/', views.ip_webcam_stream, name='ip_webcam_stream'),
     path('persons/', views.persons, name='persons'),
     path('api/person/<int:pk>/delete/', views.person_delete, name='person_delete'),
     path('settings/', views.settings_page, name='settings'),

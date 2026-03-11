@@ -4,7 +4,7 @@ import base64
 import urllib.request
 from datetime import datetime, timedelta, time as dtime
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.decorators import login_required
@@ -313,6 +313,75 @@ def checkin_frame(request):
         print(f'[checkin_frame] HTML 解析失败: {e}')
 
     print(f'[checkin_frame] 所有路径均失败, url={url}')
+    return HttpResponse(status=502)
+
+
+_IMG_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                  'AppleWebKit/537.36 (KHTML, like Gecko) '
+                  'Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+    'Sec-Fetch-Dest': 'image',
+    'Sec-Fetch-Mode': 'no-cors',
+    'Sec-Fetch-Site': 'cross-site',
+}
+
+_STREAM_CANDIDATES = [
+    '/video', '/videofeed', '/video.mjpg', '/mjpeg',
+    '/live.mjpg', '/livestream', '/stream', '/mjpegfeed',
+    '/cam/1/stream', '/videostream.cgi',
+]
+
+
+def ip_webcam_stream(request):
+    """代理 IP Webcam 的 MJPEG 视频流，使前端 <img> 同源加载。"""
+    from urllib.parse import urlparse
+
+    url = request.GET.get('url', '').strip()
+    if not url or not url.startswith(('http://', 'https://')):
+        return HttpResponse(status=400)
+
+    parsed = urlparse(url)
+    base = f'{parsed.scheme}://{parsed.netloc}'
+
+    candidates = []
+    if parsed.path and parsed.path not in ('', '/'):
+        candidates.append(url)
+    candidates.extend(base + p for p in _STREAM_CANDIDATES)
+
+    for stream_url in candidates:
+        try:
+            req = urllib.request.Request(stream_url, headers=_IMG_HEADERS)
+            resp = urllib.request.urlopen(req, timeout=10)
+            ct = resp.headers.get('Content-Type', '')
+            print(f'[stream_proxy] {stream_url}  Content-Type: {ct}')
+            if 'text/html' in ct:
+                resp.close()
+                continue
+
+            def _generate(r):
+                try:
+                    while True:
+                        chunk = r.read(4096)
+                        if not chunk:
+                            break
+                        yield chunk
+                finally:
+                    r.close()
+
+            response = StreamingHttpResponse(
+                _generate(resp),
+                content_type=ct,
+            )
+            response['Cache-Control'] = 'no-cache, no-store'
+            response['Access-Control-Allow-Origin'] = '*'
+            print(f'[stream_proxy] 代理成功: {stream_url}')
+            return response
+        except Exception as e:
+            print(f'[stream_proxy] 失败: {stream_url}  {e}')
+            continue
+
+    print(f'[stream_proxy] 所有路径均失败: {url}')
     return HttpResponse(status=502)
 
 
