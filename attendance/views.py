@@ -219,12 +219,10 @@ def checkin_frame(request):
             req = urllib.request.Request(stream_url, headers=HEADERS)
             with urllib.request.urlopen(req, timeout=5) as r:
                 content_type = r.headers.get('Content-Type', '')
-                # 确认是 MJPEG 流
-                if 'multipart' not in content_type and 'mjpeg' not in content_type:
-                    continue
+                print(f'[checkin_frame] 尝试流: {stream_url}  Content-Type: {content_type}')
                 buf = b''
-                # 最多读取 500KB，足够包含一帧
-                while len(buf) < 512_000:
+                # 最多读取 1MB，无论 Content-Type 是什么，直接找 JPEG 魔数
+                while len(buf) < 1_048_576:
                     chunk = r.read(4096)
                     if not chunk:
                         break
@@ -236,10 +234,13 @@ def checkin_frame(request):
                     end = buf.find(b'\xff\xd9', start)
                     if end != -1:
                         frame = buf[start:end + 2]
+                        print(f'[checkin_frame] 从流中提取帧成功: {stream_url}, 帧大小: {len(frame)} bytes')
                         return HttpResponse(frame, content_type='image/jpeg')
-        except Exception:
+        except Exception as e:
+            print(f'[checkin_frame] 流失败: {stream_url}  错误: {e}')
             continue
 
+    print(f'[checkin_frame] 所有路径均失败, base={url}')
     return HttpResponse(status=502)
 
 
