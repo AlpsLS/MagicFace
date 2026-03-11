@@ -5,6 +5,7 @@ MagicFace 毕业设计论文 Word 生成脚本
 """
 
 import os
+from datetime import datetime
 import io
 import matplotlib
 matplotlib.use('Agg')
@@ -43,7 +44,7 @@ plt.rcParams['axes.unicode_minus'] = False
 
 # ── 输出文件路径 ──────────────────────────────────────────────
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUTPUT_PATH = os.path.join(OUTPUT_DIR, "MagicFace毕业设计论文2.docx")
+OUTPUT_PATH = os.path.join(OUTPUT_DIR, f"MagicFace毕业设计论文_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx")
 IMG_DIR = os.path.join(OUTPUT_DIR, "thesis_imgs")
 os.makedirs(IMG_DIR, exist_ok=True)
 
