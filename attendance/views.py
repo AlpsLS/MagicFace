@@ -164,7 +164,21 @@ def checkin_frame(request):
     if not url or not url.startswith(('http://', 'https://')):
         return HttpResponse(status=400)
 
-    HEADERS = {'User-Agent': 'Mozilla/5.0 (MagicFace IP Webcam Proxy)'}
+    # 快照请求头（模拟浏览器 img 标签）
+    HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Connection': 'close',
+    }
+    # MJPEG 流请求头（专门模拟 <img src="...mjpeg"> 的请求行为）
+    STREAM_HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+    }
 
     # ── 阶段1：快照路径探测 ──────────────────────────────────────
     SNAPSHOT_PATHS = [
@@ -213,7 +227,7 @@ def checkin_frame(request):
 
     for stream_url in stream_candidates:
         try:
-            req = urllib.request.Request(stream_url, headers=HEADERS)
+            req = urllib.request.Request(stream_url, headers=STREAM_HEADERS)
             with urllib.request.urlopen(req, timeout=5) as r:
                 content_type = r.headers.get('Content-Type', '')
                 print(f'[checkin_frame] 尝试流: {stream_url}  Content-Type: {content_type}')
@@ -227,6 +241,10 @@ def checkin_frame(request):
                     # 寻找完整 JPEG 帧（SOI=\xff\xd8, EOI=\xff\xd9）
                     start = buf.find(b'\xff\xd8')
                     if start == -1:
+                        # 如果是 HTML 打印前200字符帮助诊断
+                        if b'<html' in buf[:100].lower() or b'<!doc' in buf[:100].lower():
+                            print(f'[checkin_frame] {stream_url} 返回HTML: {buf[:200]}')
+                            break
                         continue
                     end = buf.find(b'\xff\xd9', start)
                     if end != -1:
