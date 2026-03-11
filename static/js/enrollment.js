@@ -92,7 +92,7 @@
             return;
         }
         ipWebcamBase = base;
-        ipStream.src = base + '/video';
+        ipStream.src = '/checkin/stream/?url=' + encodeURIComponent(base);
         ipStream.onerror = () => showMsg('无法连接 IP Webcam', 'danger');
         ipStream.onload = () => showMsg('已连接', 'success');
         capturedDataUrl = null;
@@ -100,21 +100,19 @@
 
     captureBtn.onclick = async () => {
         const isIp = document.querySelector('input[name="camSource"]:checked').value === 'ip';
+        const ctx = canvas.getContext('2d');
         if (isIp) {
             if (!ipWebcamBase) {
                 showMsg('请先连接 IP Webcam', 'danger');
                 return;
             }
+            if (!ipStream.naturalWidth) {
+                showMsg('IP Webcam 画面尚未加载', 'danger');
+                return;
+            }
             try {
-                const r = await fetch('/checkin/frame/?url=' + encodeURIComponent(ipWebcamBase + '/shot.jpg'));
-                if (!r.ok) throw new Error('获取快照失败');
-                const blob = await r.blob();
-                capturedDataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(reader.result);
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
+                ctx.drawImage(ipStream, 0, 0, canvas.width, canvas.height);
+                capturedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
                 previewImg.src = capturedDataUrl;
                 previewArea.style.display = 'block';
                 showMsg('拍照成功，请点击提交录入', 'success');
@@ -126,8 +124,7 @@
                 showMsg('请等待摄像头就绪', 'danger');
                 return;
             }
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             capturedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
             previewImg.src = capturedDataUrl;
             previewArea.style.display = 'block';

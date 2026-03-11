@@ -57,7 +57,7 @@
                     </div>
                     <div class="text-center mb-2">
                         <video id="video" class="rounded shadow-sm" width="480" height="360" autoplay playsinline style="max-width:100%"></video>
-                        <img id="ipStream" class="rounded shadow-sm" width="480" height="360" style="display:none; max-width:100%" alt="IP Webcam">
+                        <img id="ipStream" class="rounded shadow-sm" width="480" height="360" crossorigin="anonymous" style="display:none; max-width:100%" alt="IP Webcam">
                     </div>
                     <div class="text-center mb-3">
                         <button type="button" id="captureBtn" class="btn btn-outline-primary"><i class="bi bi-camera me-1"></i>拍照</button>
@@ -83,5 +83,5 @@
 <canvas id="canvas" style="display:none" width="480" height="360"></canvas>
 {% endblock %}
 {% block extra_js %}
-<script src="{% static 'js/enrollment.js' %}"></script>
+<script src="{% static 'js/enrollment.js' %}?v=2"></script>
 {% endblock %}
