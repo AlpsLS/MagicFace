@@ -152,11 +152,69 @@ def checkin_submit(request):
     })
 
 
+def _fetch_jpeg(url, headers, timeout=3):
+    """请求 URL，若返回图片则返回字节；否则返回 None。"""
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            ct = r.headers.get('Content-Type', '')
+            data = r.read()
+        if data and ('image' in ct or data[:2] in (b'\xff\xd8', b'\x89P')):
+            return data
+    except Exception:
+        pass
+    return None
+
+
+def _extract_frame_from_stream(url, headers, timeout=5):
+    """连接流，读取字节，找第一个完整 JPEG 帧。返回帧字节或 None。"""
+    import re as _re
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            ct = r.headers.get('Content-Type', '')
+            buf = b''
+            while len(buf) < 1_048_576:
+                chunk = r.read(4096)
+                if not chunk:
+                    break
+                buf += chunk
+                start = buf.find(b'\xff\xd8')
+                if start == -1:
+                    continue
+                end = buf.find(b'\xff\xd9', start)
+                if end != -1:
+                    return buf[start:end + 2]
+    except Exception:
+        pass
+    return None
+
+
+def _find_stream_urls_in_html(html_bytes, base):
+    """解析 HTML，提取可能的视频流 URL。"""
+    import re as _re
+    html = html_bytes.decode('utf-8', errors='ignore')
+    # 匹配常见的流路径关键词
+    patterns = [
+        r'''(?:src|href|url)\s*[=:]\s*['"]([^'"]*(?:videofeed|video\.mjpg|mjpeg|mjpg|livestream|live\.mjpg|stream\.mjpg|feed)[^'"]*)['"]''',
+        r'''['"]([^'"]*\.mjpg[^'"]*)['"]''',
+        r'''['"]([^'"]*(?:videofeed|mjpegfeed)[^'"]*)['"]''',
+    ]
+    urls = []
+    for p in patterns:
+        for m in _re.findall(p, html, _re.IGNORECASE):
+            full = (base + m) if m.startswith('/') else m
+            if full not in urls:
+                urls.append(full)
+    return urls
+
+
 def checkin_frame(request):
     """代理 IP Webcam 快照，避免 CORS。
     策略：
     1. 优先探测常见快照路径（静态图片，快速）
-    2. 全部失败后，尝试从 MJPEG 视频流中提取第一帧（兜底）
+    2. 探测常见 MJPEG 流路径，提取第一帧
+    3. 如果流路径返回 HTML，解析 HTML 自动找真实流地址（终极兜底）
     """
     from urllib.parse import urlparse
 
@@ -183,11 +241,11 @@ def checkin_frame(request):
     # ── 阶段1：快照路径探测 ──────────────────────────────────────
     SNAPSHOT_PATHS = [
         '/shot.jpg',        # IP Webcam (Android)
-        '/snapshot.jpg',    # 通用
-        '/jpeg',            # 部分软件
-        '/capture',         # 部分软件
+        '/photo.jpg',       # IP Webcam Pro
+        '/snapshot.jpg',
+        '/jpeg',
+        '/capture',
         '/cam/1/frame.jpg', # DroidCam
-        '/photo.jpg',
         '/image.jpg',
         '/frame.jpg',
     ]
@@ -195,67 +253,66 @@ def checkin_frame(request):
     parsed = urlparse(url)
     base = f'{parsed.scheme}://{parsed.netloc}'
 
-    # url 已含具体路径时，把它排在第一位，其余路径作为备选
     if parsed.path and parsed.path != '/':
         snapshot_candidates = [url] + [base + p for p in SNAPSHOT_PATHS if base + p != url]
     else:
         snapshot_candidates = [base + p for p in SNAPSHOT_PATHS]
 
     for candidate in snapshot_candidates:
-        try:
-            req = urllib.request.Request(candidate, headers=HEADERS)
-            with urllib.request.urlopen(req, timeout=3) as r:
-                content_type = r.headers.get('Content-Type', '')
-                data = r.read()
-            if data and ('image' in content_type or data[:2] in (b'\xff\xd8', b'\x89P')):
-                return HttpResponse(data, content_type='image/jpeg')
-        except Exception:
-            continue
+        data = _fetch_jpeg(candidate, HEADERS, timeout=3)
+        if data:
+            print(f'[checkin_frame] 快照成功: {candidate}')
+            return HttpResponse(data, content_type='image/jpeg')
 
-    # ── 阶段2：MJPEG 流取帧（兜底）──────────────────────────────
+    # ── 阶段2：MJPEG 流取帧 ──────────────────────────────────────
     STREAM_PATHS = [
-        '/video',           # IP Webcam (Android)
-        '/mjpeg',           # 通用
-        '/stream',          # 通用
-        '/mjpegfeed',       # 部分软件
+        '/videofeed',       # IP Webcam Pro (Android) 实际流地址
+        '/video.mjpg',
+        '/video',
+        '/mjpeg',
+        '/live.mjpg',
+        '/livestream',
+        '/stream',
+        '/mjpegfeed',
         '/cam/1/stream',    # DroidCam
-        '/videostream.cgi', # 部分网络摄像头
+        '/videostream.cgi',
     ]
 
-    # 始终以 scheme+host 作为 base，确保拼接正确
     stream_candidates = [base + p for p in STREAM_PATHS]
 
     for stream_url in stream_candidates:
-        try:
-            req = urllib.request.Request(stream_url, headers=STREAM_HEADERS)
-            with urllib.request.urlopen(req, timeout=5) as r:
-                content_type = r.headers.get('Content-Type', '')
-                print(f'[checkin_frame] 尝试流: {stream_url}  Content-Type: {content_type}')
-                buf = b''
-                # 最多读取 1MB，无论 Content-Type 是什么，直接找 JPEG 魔数
-                while len(buf) < 1_048_576:
-                    chunk = r.read(4096)
-                    if not chunk:
-                        break
-                    buf += chunk
-                    # 寻找完整 JPEG 帧（SOI=\xff\xd8, EOI=\xff\xd9）
-                    start = buf.find(b'\xff\xd8')
-                    if start == -1:
-                        # 如果是 HTML 打印前200字符帮助诊断
-                        if b'<html' in buf[:100].lower() or b'<!doc' in buf[:100].lower():
-                            print(f'[checkin_frame] {stream_url} 返回HTML: {buf[:200]}')
-                            break
-                        continue
-                    end = buf.find(b'\xff\xd9', start)
-                    if end != -1:
-                        frame = buf[start:end + 2]
-                        print(f'[checkin_frame] 从流中提取帧成功: {stream_url}, 帧大小: {len(frame)} bytes')
-                        return HttpResponse(frame, content_type='image/jpeg')
-        except Exception as e:
-            print(f'[checkin_frame] 流失败: {stream_url}  错误: {e}')
-            continue
+        print(f'[checkin_frame] 尝试流: {stream_url}')
+        # 先当快照试（有些流 URL 支持单帧响应）
+        data = _fetch_jpeg(stream_url, HEADERS, timeout=3)
+        if data:
+            print(f'[checkin_frame] 流作快照成功: {stream_url}')
+            return HttpResponse(data, content_type='image/jpeg')
+        # 再作为 MJPEG 流提取帧
+        frame = _extract_frame_from_stream(stream_url, STREAM_HEADERS, timeout=5)
+        if frame:
+            print(f'[checkin_frame] 流取帧成功: {stream_url}, 大小: {len(frame)} bytes')
+            return HttpResponse(frame, content_type='image/jpeg')
 
-    print(f'[checkin_frame] 所有路径均失败, base={url}')
+    # ── 阶段3：解析主页 HTML，寻找真实流地址 ─────────────────────
+    print(f'[checkin_frame] 尝试解析主页 HTML: {base}/')
+    try:
+        req = urllib.request.Request(base + '/', headers=STREAM_HEADERS)
+        with urllib.request.urlopen(req, timeout=5) as r:
+            html_bytes = r.read(65536)
+        found = _find_stream_urls_in_html(html_bytes, base)
+        print(f'[checkin_frame] HTML 中发现候选: {found}')
+        for fu in found:
+            frame = _extract_frame_from_stream(fu, STREAM_HEADERS, timeout=5)
+            if frame:
+                print(f'[checkin_frame] HTML 解析流取帧成功: {fu}')
+                return HttpResponse(frame, content_type='image/jpeg')
+            data = _fetch_jpeg(fu, HEADERS, timeout=3)
+            if data:
+                return HttpResponse(data, content_type='image/jpeg')
+    except Exception as e:
+        print(f'[checkin_frame] HTML 解析失败: {e}')
+
+    print(f'[checkin_frame] 所有路径均失败, url={url}')
     return HttpResponse(status=502)
 
 
