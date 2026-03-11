@@ -179,11 +179,12 @@ def checkin_frame(request):
     ]
 
     parsed = urlparse(url)
-    # url 已含具体文件路径时直接请求，否则逐一拼接探测
-    if parsed.path and parsed.path != '/' and '.' in parsed.path.split('/')[-1]:
-        snapshot_candidates = [url]
+    base = f'{parsed.scheme}://{parsed.netloc}'
+
+    # url 已含具体路径时，把它排在第一位，其余路径作为备选
+    if parsed.path and parsed.path != '/':
+        snapshot_candidates = [url] + [base + p for p in SNAPSHOT_PATHS if base + p != url]
     else:
-        base = url.rstrip('/')
         snapshot_candidates = [base + p for p in SNAPSHOT_PATHS]
 
     for candidate in snapshot_candidates:
@@ -207,12 +208,8 @@ def checkin_frame(request):
         '/videostream.cgi', # 部分网络摄像头
     ]
 
-    base = url.rstrip('/')
-    # url 已含路径时视为流地址直接尝试，否则逐一拼接
-    if parsed.path and parsed.path != '/':
-        stream_candidates = [url]
-    else:
-        stream_candidates = [base + p for p in STREAM_PATHS]
+    # 始终以 scheme+host 作为 base，确保拼接正确
+    stream_candidates = [base + p for p in STREAM_PATHS]
 
     for stream_url in stream_candidates:
         try:
