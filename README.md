@@ -94,6 +94,14 @@ pip install -r requirements.txt
 # uv pip install -r requirements.txt
 ```
 
+**Windows 安装 uv：** 在 PowerShell 中执行：
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+uv --version
+```
+
 > dlib 编译耗时较长（5~15 分钟），请耐心等待。
 
 ### 3. 初始化数据库
